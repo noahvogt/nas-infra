@@ -17,12 +17,14 @@ mail_to() {
 		echo root
 }
 
-# notify SUBJECT, body on stdin
+# notify SUBJECT, body on stdin. OMV's postfix prefixes the subject with [hostname].
+# Headers must be ASCII: the subject is RFC 2047 encoded (umlauts).
 notify() {
-	local to
+	local to subject
 	to=$(mail_to)
+	subject="=?UTF-8?B?$(printf '%s' "$1" | base64 -w0)?="
 	{
-		printf 'To: %s\nSubject: [%s] %s\nContent-Type: text/plain; charset=UTF-8\n\n' "$to" "$(hostname)" "$1"
+		printf 'To: %s\nSubject: %s\nMIME-Version: 1.0\nContent-Type: text/plain; charset=UTF-8\nContent-Transfer-Encoding: 8bit\n\n' "$to" "$subject"
 		cat
 	} | /usr/sbin/sendmail -t || echo "notify: sendmail failed" >&2
 }
