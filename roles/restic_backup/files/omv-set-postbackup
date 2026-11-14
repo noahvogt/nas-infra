@@ -1,0 +1,25 @@
+#!/usr/bin/python3
+"""Set the post-backup script of an OMV compose job. Prints "changed" or "ok".
+
+usage: omv-set-postbackup JOB_UUID SCRIPT
+"""
+import json
+import subprocess
+import sys
+
+
+def rpc(method, params):
+    out = subprocess.check_output(["omv-rpc", "-u", "admin", "Compose", method, json.dumps(params)])
+    return json.loads(out) if out.strip() else None
+
+
+uuid, script = sys.argv[1], sys.argv[2]
+job = rpc("getJob", {"uuid": uuid})
+if not job.get("backup"):
+    sys.exit(f"job {uuid} is not a backup job")
+if job.get("postbackup") == script:
+    print("ok")
+else:
+    job["postbackup"] = script
+    rpc("setJob", job)
+    print("changed")

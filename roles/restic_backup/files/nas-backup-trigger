@@ -1,0 +1,3 @@
+#!/bin/sh
+# Post-backup hook of the OMV compose backup job: start the restic backup and return at once.
+exec systemctl start --no-block nas-backup.service

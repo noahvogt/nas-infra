@@ -1,0 +1,11 @@
+#!/bin/bash
+# OnFailure handler: mail the status and the log of the failed run of unit $1.
+. /usr/local/lib/nas-backup/common.sh
+
+unit=$1
+inv=$(systemctl show -p InvocationID --value "$unit")
+{
+	systemctl status --no-pager "$unit" || true
+	echo
+	journalctl --no-pager -o short-iso "_SYSTEMD_INVOCATION_ID=$inv" | tail -n 100
+} | notify "FEHLER: $unit"

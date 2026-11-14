@@ -1,0 +1,7 @@
+---
+- name: Provision the NAS (Raspberry Pi 5, OpenMediaVault)
+  hosts: nas
+  gather_facts: false
+  become: true
+  roles:
+    - restic_backup

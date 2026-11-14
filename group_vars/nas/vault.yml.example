@@ -1,0 +1,8 @@
+---
+# Template for group_vars/nas/vault.yml (value from KeePass), then:
+#   ansible-vault encrypt group_vars/nas/vault.yml
+# Without this password the backups cannot be read. Keep it in KeePass, not only here.
+vault_restic_password: CHANGEME
+# :ro mounts of stacks (skipped by the OMV backup), full paths
+vault_restic_extra_paths:
+  - /srv/dev-disk-by-uuid-CHANGEME/DockerData/<stack>/<file-or-dir>

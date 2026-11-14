@@ -1,0 +1,8 @@
+all:
+  children:
+    nas:
+      hosts:
+        nas1:
+          ansible_host: 192.168.71.5
+          ansible_port: 2222
+          ansible_user: admin

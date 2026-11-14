@@ -1,0 +1,126 @@
+---
+- name: Install restic and smartmontools
+  ansible.builtin.apt:
+    name: [restic, smartmontools]
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Create directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  loop:
+    - /etc/nas-backup
+    - /var/lib/nas-backup
+    - /var/cache/restic
+    - /usr/local/lib/nas-backup
+    - "{{ restic_repo }}"
+
+- name: Install restic password
+  ansible.builtin.copy:
+    content: "{{ vault_restic_password }}\n"
+    dest: /etc/nas-backup/password
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
+- name: Install config, paths and excludes
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/nas-backup/{{ item }}"
+    owner: root
+    group: root
+    mode: "0600"
+  loop: [config.sh, paths, excludes]
+
+- name: Install shared functions
+  ansible.builtin.copy:
+    src: common.sh
+    dest: /usr/local/lib/nas-backup/common.sh
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Install OMV helper
+  ansible.builtin.copy:
+    src: omv-set-postbackup
+    dest: /usr/local/lib/nas-backup/omv-set-postbackup
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install scripts
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "/usr/local/sbin/{{ item }}"
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - nas-backup
+    - nas-backup-maint
+    - nas-backup-notify
+    - nas-backup-trigger
+    - nas-offsite-sync
+
+- name: Install systemd units
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - nas-backup.service
+    - nas-backup-maint.service
+    - nas-backup-maint.timer
+    - nas-backup-notify@.service
+    - nas-offsite-sync.service
+  notify: Reload systemd
+
+- name: Install udev rule for the offsite disk
+  ansible.builtin.template:
+    src: 99-nas-offsite.rules.j2
+    dest: /etc/udev/rules.d/99-nas-offsite.rules
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload udev
+
+- name: Apply systemd and udev changes now
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable the weekly maintenance timer
+  ansible.builtin.systemd_service:
+    name: nas-backup-maint.timer
+    enabled: true
+    state: started
+
+- name: Check for the stage-1 repo
+  ansible.builtin.command: restic cat config
+  environment: &restic_env
+    RESTIC_REPOSITORY: "{{ restic_repo }}"
+    RESTIC_PASSWORD_FILE: /etc/nas-backup/password
+    RESTIC_CACHE_DIR: /var/cache/restic
+  register: restic_backup_repo_config
+  failed_when: false
+  changed_when: false
+  check_mode: false
+
+- name: Create the stage-1 repo
+  ansible.builtin.command: restic init --repository-version 2
+  environment: *restic_env
+  when: restic_backup_repo_config.rc != 0
+  changed_when: true
+
+- name: Run the restic backup after the OMV compose backup (post-backup hook)
+  ansible.builtin.command: >-
+    /usr/local/lib/nas-backup/omv-set-postbackup
+    {{ omv_compose_backup_job }} /usr/local/sbin/nas-backup-trigger
+  register: restic_backup_omv_postbackup
+  changed_when: "'changed' in restic_backup_omv_postbackup.stdout"
+  notify: Apply OMV changes

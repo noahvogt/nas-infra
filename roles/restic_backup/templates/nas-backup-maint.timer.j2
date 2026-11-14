@@ -1,0 +1,10 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Weekly prune and check of the restic repo
+
+[Timer]
+OnCalendar=Mon *-*-* 05:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

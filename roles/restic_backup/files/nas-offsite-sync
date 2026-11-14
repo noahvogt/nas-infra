@@ -1,0 +1,66 @@
+#!/bin/bash
+# Stage 2: copy the stage-1 repo to the offsite USB disk, check it, unmount and power it off.
+# Started by udev (nas-offsite-sync.service) when the disk is plugged in.
+#   nas-offsite-sync [--init]   --init: create the repo on the disk (first time only)
+. /usr/local/lib/nas-backup/common.sh
+
+init=0
+[ "${1:-}" = "--init" ] && init=1
+
+# Hold (e.g. to mount the disk by hand for a restore): touch /run/nas-offsite-hold
+if [ -e /run/nas-offsite-hold ] && [ "$init" = 0 ]; then
+	echo "/run/nas-offsite-hold exists, not syncing"
+	exit 0
+fi
+
+dev="/dev/disk/by-label/$OFFSITE_LABEL"
+if [ ! -e "$dev" ]; then
+	echo "Disk $OFFSITE_LABEL not found" >&2
+	exit 1
+fi
+part=$(readlink -f "$dev")
+disk="/dev/$(lsblk -no PKNAME "$part")"
+
+with_lock
+
+echo "Gestartet: $(date)" | notify "Offsite-Abgleich läuft, Platte NICHT abziehen"
+
+mkdir -p "$OFFSITE_MOUNT"
+mountpoint -q "$OFFSITE_MOUNT" || mount -o noatime "$part" "$OFFSITE_MOUNT"
+trap 'mountpoint -q "$OFFSITE_MOUNT" && umount "$OFFSITE_MOUNT"' EXIT
+
+off=(-r "$OFFSITE_REPO")
+from=(--from-repo "$RESTIC_REPOSITORY" --from-password-file "$RESTIC_PASSWORD_FILE")
+
+if ! restic "${off[@]}" cat config >/dev/null 2>&1; then
+	if [ "$init" = 0 ]; then
+		echo "No restic repo on the disk. First time: nas-offsite-sync --init" >&2
+		exit 1
+	fi
+	restic "${off[@]}" init --repository-version 2 "${from[@]}" --copy-chunker-params
+fi
+
+restic "${off[@]}" copy "${from[@]}"
+restic "${off[@]}" forget --tag nas --group-by host,tags "${OFFSITE_KEEP[@]}" --prune
+# Full read: the disk lies in a cupboard for months.
+restic "${off[@]}" check --read-data
+
+snaps=$(restic "${off[@]}" snapshots --tag nas --compact)
+smart=$(smartctl -d sat -H -A "$disk" | sed -n '/overall-health/p;/^ID#/,$p' || true)
+
+date --iso-8601=seconds >"$STATE_DIR/last-offsite"
+sync
+umount "$OFFSITE_MOUNT"
+trap - EXIT
+echo 1 >"/sys/block/$(basename "$disk")/device/delete"
+
+notify "Offsite-Abgleich fertig, Platte kann abgezogen werden" <<EOF
+Fertig: $(date)
+Die Platte ist abgemeldet und kann abgezogen werden.
+
+Snapshots auf der Platte:
+$snaps
+
+SMART:
+$smart
+EOF

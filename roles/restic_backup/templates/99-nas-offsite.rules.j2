@@ -1,0 +1,2 @@
+# {{ ansible_managed }}
+ACTION=="add", SUBSYSTEM=="block", ENV{ID_FS_LABEL}=="{{ restic_offsite_label }}", TAG+="systemd", ENV{SYSTEMD_WANTS}+="nas-offsite-sync.service"

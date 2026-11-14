@@ -1,0 +1,7 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Mail about the failed %i
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/nas-backup-notify %i

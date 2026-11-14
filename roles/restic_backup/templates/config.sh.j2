@@ -1,0 +1,21 @@
+# {{ ansible_managed }} (nas-infra, role restic_backup)
+# shellcheck shell=bash
+export RESTIC_REPOSITORY='{{ restic_repo }}'
+export RESTIC_PASSWORD_FILE=/etc/nas-backup/password
+export RESTIC_CACHE_DIR=/var/cache/restic
+export GOMAXPROCS={{ restic_gomaxprocs }}
+
+DATA_ROOT='{{ data_root }}'
+STATE_DIR=/var/lib/nas-backup
+
+OFFSITE_LABEL='{{ restic_offsite_label }}'
+OFFSITE_MOUNT='{{ restic_offsite_mount }}'
+OFFSITE_REPO='{{ restic_offsite_repo }}'
+
+RESTIC_KEEP=({{ restic_keep }})
+OFFSITE_KEEP=({{ restic_offsite_keep }})
+CHECK_SUBSET='{{ restic_check_subset }}'
+
+COMPOSEBACKUP_MAX_AGE_H={{ composebackup_max_age_hours }}
+BACKUP_MAX_AGE_H={{ backup_max_age_hours }}
+OFFSITE_MAX_AGE_D={{ offsite_max_age_days }}

@@ -1,0 +1,11 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Prune and check the restic repo of the NAS
+RequiresMountsFor={{ data_root }}
+OnFailure=nas-backup-notify@%n.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/nas-backup-maint
+Nice=10
+IOSchedulingClass=idle

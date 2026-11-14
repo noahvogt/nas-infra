@@ -1,0 +1,12 @@
+# {{ ansible_managed }}
+# Started by the post-backup hook of the OMV compose backup job, no timer.
+[Unit]
+Description=restic backup of the NAS (stage 1)
+RequiresMountsFor={{ data_root }}
+OnFailure=nas-backup-notify@%n.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/nas-backup
+Nice=10
+IOSchedulingClass=idle

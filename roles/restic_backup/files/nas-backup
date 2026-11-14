@@ -1,0 +1,44 @@
+#!/bin/bash
+# Stage 1: daily restic backup on the NAS. Started by nas-backup.service, which the
+# post-backup hook of the OMV compose backup job starts once all stacks are copied.
+#   nas-backup [--manual]   --manual: skip the check that ComposeBackup is from tonight
+. /usr/local/lib/nas-backup/common.sh
+
+manual=0
+[ "${1:-}" = "--manual" ] && manual=1
+
+with_lock
+rc=0
+
+# Is the OMV mirror from tonight? Each stack writes space.used at the end of its copy.
+if [ "$manual" = 0 ]; then
+	now=$(date +%s)
+	stale=""
+	for name in $(omv-confdbadm read conf.service.compose.file | python3 -c 'import json, sys; print("\n".join(f["name"] for f in json.load(sys.stdin)))'); do
+		f="$DATA_ROOT/ComposeBackup/$name/space.used"
+		if [ ! -f "$f" ] || [ $((now - $(stat -c %Y "$f"))) -gt $((COMPOSEBACKUP_MAX_AGE_H * 3600)) ]; then
+			stale="$stale $name"
+		fi
+	done
+	if [ -n "$stale" ]; then
+		echo "ComposeBackup is not from tonight for:$stale (backing up anyway)" >&2
+		rc=1
+	fi
+fi
+
+# What restic cannot see in files: packages, disks, RAID, images.
+si="$STATE_DIR/sysinfo"
+mkdir -p "$si"
+dpkg --get-selections >"$si/dpkg-selections.txt"
+apt-mark showmanual >"$si/apt-manual.txt"
+lsblk -f >"$si/lsblk.txt"
+mdadm --detail /dev/md0 >"$si/mdadm-md0.txt"
+docker image ls --digests >"$si/docker-images.txt"
+docker compose ls --all >"$si/docker-compose-ls.txt"
+
+restic backup --tag nas --exclude-caches \
+	--files-from-verbatim /etc/nas-backup/paths \
+	--exclude-file /etc/nas-backup/excludes || rc=$?
+restic forget --tag nas --group-by host,tags "${RESTIC_KEEP[@]}" || rc=$?
+
+exit "$rc"

@@ -1,0 +1,11 @@
+# {{ ansible_managed }}
+# Started by udev when the disk with label {{ restic_offsite_label }} is plugged in.
+[Unit]
+Description=Copy the restic repo to the offsite USB disk (stage 2)
+RequiresMountsFor={{ data_root }}
+OnFailure=nas-backup-notify@%n.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/nas-offsite-sync
+Nice=10

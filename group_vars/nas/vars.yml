@@ -1,0 +1,43 @@
+---
+# RAID md0, mounted by OMV
+data_root: /srv/dev-disk-by-uuid-81c3620a-a6ea-4c09-9890-b14ebe7feac8
+
+# Stage 1: restic repo on the NAS
+restic_repo: "{{ data_root }}/ResticRepo"
+
+# Stage 2: offsite USB disk (ext4, this label), synced when plugged in
+restic_offsite_label: nas-offsite
+restic_offsite_mount: /mnt/nas-offsite
+restic_offsite_repo: "{{ restic_offsite_mount }}/restic"
+
+# OMV compose job with the nightly backup into ComposeBackup (Services > Compose > Schedule).
+# Its post-backup hook starts the restic backup.
+omv_compose_backup_job: 779f1e79-1f16-4b49-bfd9-1374f8bfd16e
+
+restic_paths:
+  # consistent copies of all stacks (stopped during the copy), incl. global.env
+  - "{{ data_root }}/ComposeBackup"
+  - "{{ data_root }}/ComposeFiles"
+  # SD card: OMV config (/etc/openmediavault/config.xml), units, keys, config.txt (SATA hat)
+  - /etc
+  - /root
+  - /home/admin
+  - /opt
+  - /usr/local
+  - /boot/firmware
+  - /var/lib/nas-backup
+# plus vault_restic_extra_paths: :ro mounts of stacks, skipped by the OMV backup
+restic_excludes:
+  - /opt/containerd
+  - "**/.cache"
+
+restic_keep: --keep-daily 7 --keep-weekly 5 --keep-monthly 12 --keep-yearly 3
+restic_offsite_keep: --keep-monthly 24 --keep-yearly 10
+restic_check_subset: 10%
+# restic uses at most this many cores, so the services keep the others
+restic_gomaxprocs: 2
+
+# Alerts (mail via OMV notification settings)
+composebackup_max_age_hours: 3
+backup_max_age_hours: 36
+offsite_max_age_days: 190
