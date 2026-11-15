@@ -1,0 +1,8 @@
+---
+# /etc/default/openmediavault only reaches salt through the pillar, which "prepare" regenerates.
+- name: Deploy OMV apt config
+  ansible.builtin.command: "{{ item }}"
+  loop:
+    - omv-salt stage run prepare
+    - omv-salt deploy run apt
+  changed_when: true

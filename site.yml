@@ -4,5 +4,6 @@
   gather_facts: false
   become: true
   roles:
+    - omv_settings
     - restic_backup
     - raid_check

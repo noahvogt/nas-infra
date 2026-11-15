@@ -9,6 +9,7 @@ Ansible for a NAS (Raspberry Pi 5, OpenMediaVault 8). OMV stays in charge of the
 | `inventory.yml` | The NAS (SSH port 2222) |
 | `group_vars/nas/vars.yml` | Paths, retention, alert thresholds |
 | `group_vars/nas/vault.yml` | restic password, site-specific backup paths; ansible-vault encrypted |
+| `roles/omv_settings/` | OMV/apt settings for the Raspberry Pi (below) |
 | `roles/restic_backup/` | Backup in two stages (below) |
 | `roles/raid_check/` | Fixed times for the monthly RAID check (below) |
 
@@ -76,3 +77,7 @@ Debian's `mdcheck` reads all sectors of md0 once a month, at most 6 h per night.
 systemctl list-timers 'mdcheck*'
 cat /proc/mdstat                           # progress while running
 ```
+
+## OMV settings
+
+Kernel and firmware come from the Raspberry Pi repo. OMV adds Debian's kernel backports by default, pinned above them for `linux-*` and `firmware-*`; `OMV_APT_USE_KERNEL_BACKPORTS="no"` in `/etc/default/openmediavault` turns that off for every later apply. The `armhf` architecture left over from Raspberry Pi OS is removed (OMV 8 has no armhf packages).

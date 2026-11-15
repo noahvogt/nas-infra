@@ -1,0 +1,22 @@
+---
+# Kernel and firmware come from the Raspberry Pi repo. OMV's kernel backports
+# repo pins linux-*/firmware-* from Debian backports above them, so turn it off.
+# OMV re-reads this file on every apply of the apt module.
+- name: Disable OMV's kernel backports repo
+  ansible.builtin.lineinfile:
+    path: /etc/default/openmediavault
+    regexp: '^OMV_APT_USE_KERNEL_BACKPORTS='
+    line: 'OMV_APT_USE_KERNEL_BACKPORTS="no"'
+  notify: Deploy OMV apt config
+
+# Left over from Raspberry Pi OS. OMV 8 has no armhf packages, apt only prints notices.
+- name: Read foreign dpkg architectures
+  ansible.builtin.command: dpkg --print-foreign-architectures
+  register: omv_settings_foreign_archs
+  changed_when: false
+  check_mode: false
+
+- name: Remove the armhf architecture
+  ansible.builtin.command: dpkg --remove-architecture armhf
+  when: "'armhf' in omv_settings_foreign_archs.stdout_lines"
+  changed_when: true
