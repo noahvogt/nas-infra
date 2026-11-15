@@ -1,0 +1,23 @@
+---
+- name: Create drop-in directories for the mdcheck timers
+  ansible.builtin.file:
+    path: "/etc/systemd/system/{{ item }}.d"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - mdcheck_start.timer
+    - mdcheck_continue.timer
+
+- name: Fix the times of the monthly RAID check
+  ansible.builtin.template:
+    src: timer-override.conf.j2
+    dest: "/etc/systemd/system/{{ item.timer }}.d/override.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - { timer: mdcheck_start.timer, on_calendar: "{{ raid_check_start }}" }
+    - { timer: mdcheck_continue.timer, on_calendar: "{{ raid_check_continue }}" }
+  notify: Restart mdcheck timers

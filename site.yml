@@ -5,3 +5,4 @@
   become: true
   roles:
     - restic_backup
+    - raid_check

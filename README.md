@@ -1,6 +1,6 @@
 # nas-infra
 
-Ansible for a NAS (Raspberry Pi 5, OpenMediaVault 7). OMV stays in charge of the Docker stacks (*Services → Compose*). This repo only manages what OMV does not.
+Ansible for a NAS (Raspberry Pi 5, OpenMediaVault 8). OMV stays in charge of the Docker stacks (*Services → Compose*). This repo only manages what OMV does not.
 
 ## Layout
 
@@ -10,6 +10,7 @@ Ansible for a NAS (Raspberry Pi 5, OpenMediaVault 7). OMV stays in charge of the
 | `group_vars/nas/vars.yml` | Paths, retention, alert thresholds |
 | `group_vars/nas/vault.yml` | restic password, site-specific backup paths; ansible-vault encrypted |
 | `roles/restic_backup/` | Backup in two stages (below) |
+| `roles/raid_check/` | Fixed times for the monthly RAID check (below) |
 
 ## Setup
 
@@ -66,3 +67,12 @@ umount /mnt/nas-offsite; rm /run/nas-offsite-hold
 ### Restore without the NAS
 
 Any machine with restic ≥ 0.14: mount the offsite disk, `restic -r <mount>/restic snapshots` with the password from KeePass. Then rebuild: install OMV and the plugins, create RAID, filesystem and shared folders (`/etc/openmediavault/config.xml` from the backup is the reference for all settings), restore `ComposeBackup/` and recreate the stacks via *Compose → Restore*, then run this playbook.
+
+## RAID check
+
+Debian's `mdcheck` reads all sectors of md0 once a month, at most 6 h per night. The stock timers start at a random time within 24 h (12 h for the continuation). The drop-ins fix them: start on the first Thursday of the month at 21:00, continue at 21:00 on the following nights until done. Weak sectors found by the check raise the SMART counters, and smartd (enabled in OMV, *Storage → S.M.A.R.T.*) mails about them.
+
+```sh
+systemctl list-timers 'mdcheck*'
+cat /proc/mdstat                           # progress while running
+```

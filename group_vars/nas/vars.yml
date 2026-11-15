@@ -41,3 +41,8 @@ restic_gomaxprocs: 2
 composebackup_max_age_hours: 3
 backup_max_age_hours: 36
 offsite_max_age_days: 190
+
+# Monthly RAID check (Debian mdcheck, at most 6 h per night): starts on the first
+# Thursday of the month, continues the following nights until done.
+raid_check_start: Thu *-*-1..7 21:00
+raid_check_continue: "*-*-* 21:00"
